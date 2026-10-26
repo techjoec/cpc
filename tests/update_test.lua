@@ -67,6 +67,12 @@ check(#out == 0, "a list that does not know this version says nothing")
 versionsOnDisk = nil
 load({ autoUpdate = "off" })
 check(#downloads == 0, "off: nothing is fetched at load")
+
+-- off through the profile's settings file, which wins over the defaults
+local sf = io.open("/tmp/cpc-settings.lua", "w"); sf:write('return { autoUpdate = "off", strictTargets = true }'); sf:close()
+load(nil)
+os.remove("/tmp/cpc-settings.lua")
+check(cpc.autoUpdate == "off" and cpc.strictTargets == true and #downloads == 0, "settings file: read at load, nothing fetched")
 check(cpc:checkVersion() == "<orange>(auto update off)", "off: #VERSION says so instead of guessing")
 
 -- on, installed as a package

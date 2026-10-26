@@ -34,6 +34,21 @@ cpc.strictTargets = cpc.strictTargets or false
 -- online. #CPC UPDATE installs the latest on request whatever the setting.
 cpc.autoUpdate = cpc.autoUpdate or "notify"
 cpc.releasePage = "https://github.com/techjoec/cpc/releases/tag/"
+-- a profile's own settings, kept across package updates: &lt;profile&gt;/cpc-settings.lua returning
+-- a table of the fields above, e.g. return { autoUpdate = "off", strictTargets = true }
+cpc.settingsFile = getMudletHomeDir() .. "/cpc-settings.lua"
+do
+  local f = io.open(cpc.settingsFile, "r")
+  if f then
+    f:close()
+    local ok, t = pcall(dofile, cpc.settingsFile)
+    if ok and type(t) == "table" then
+      for k, v in pairs(t) do cpc[k] = v end
+    else
+      cecho("&lt;orange&gt;CPC: could not read " .. cpc.settingsFile .. ": " .. tostring(t) .. "\n")
+    end
+  end
+end
 cpc.thisProfileName = getProfileName():lower()
 cpc.downloadPath = getMudletHomeDir().."/cpc downloads/"
 cpc.downloading = false
