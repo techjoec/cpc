@@ -48,6 +48,7 @@ with `lua`); CPC keeps a value that is already set:
 | `cpc.debug` | `false` | Log what CPC does |
 | `cpc.localEcho` | `true` | Echo CPC's own notices in this profile |
 | `cpc.strictTargets` | `false` | A `#BID` or `#TELL` target reaches at most one profile (above) |
+| `cpc.autoUpdate` | `"notify"` | `"notify"`: at load, say when a newer release exists, with a link to its release page. `"on"`: install it at load (package installs; a module from a git clone is told to pull). `"off"`: never look online. `#CPC UPDATE` installs the latest on request whatever the setting; `#VERSION` shows how far behind this copy is. |
 
 ## Installation
 
@@ -75,7 +76,8 @@ Note! when installed like this, the scripts and aliases will be organized under 
 ## Development
 
 `cpc.xml` is the Mudlet module: the script and the `#` alias. `lua5.1 tests/targeting_test.lua`
-runs the targeting rule in both modes with stand-ins for Mudlet. A release is a `v*` tag: the
+runs the targeting rule in both modes and `lua5.1 tests/update_test.lua` the three auto update
+settings, with stand-ins for Mudlet. A release is a `v*` tag: the
 workflow runs the test, stamps the tag into `cpc.xml` and attaches `cpc.mpackage` to a GitHub
 release. Add the tag to `versions.lua` in the same commit, since installed copies look their
 version up in that list to tell how far behind they are.

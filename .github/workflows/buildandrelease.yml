@@ -18,7 +18,7 @@ jobs:
         run: sudo apt-get update -q && sudo apt-get install -y -q lua5.1
 
       - name: Run the tests
-        run: lua5.1 tests/targeting_test.lua
+        run: lua5.1 tests/targeting_test.lua && lua5.1 tests/update_test.lua
 
       - name: Build the package
         run: |

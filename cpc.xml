@@ -29,6 +29,11 @@ cpc.debug = cpc.debug or false
 cpc.localEcho = cpc.localEcho or true
 -- true: a #BID or #TELL target reaches at most one profile (see cpc:isTarget)
 cpc.strictTargets = cpc.strictTargets or false
+-- "notify": at load, say when a newer release exists, with a link to it; "on": install it
+-- (package installs only; a module from a git clone is told to pull); "off": never look
+-- online. #CPC UPDATE installs the latest on request whatever the setting.
+cpc.autoUpdate = cpc.autoUpdate or "notify"
+cpc.releasePage = "https://github.com/techjoec/cpc/releases/tag/"
 cpc.thisProfileName = getProfileName():lower()
 cpc.downloadPath = getMudletHomeDir().."/cpc downloads/"
 cpc.downloading = false
@@ -242,7 +247,7 @@ function cpc:onFileDownloaded(event, ...)
     if string.ends(file,"/versions.lua") then
       --print("Versions file downloaded from github")
       cpc.downloading=false
-      cpc:checkVersion()
+      cpc:onVersionsFetched()
     elseif string.ends(file,"/cpc.xml") then
       --print("DEPRECATED: New version of CPC downloaded...")
       cpc.downloading=false
@@ -297,22 +302,50 @@ function cpc:downloadVersionFile()
   downloadFile(cpc.downloadPath .. filename, cpc.onlineVersionFile)
 end
 
-function cpc:checkVersion()
+-- how many releases this copy is behind the fetched list, and the newest one; 0 and this
+-- version when the list has not been fetched (cpc.autoUpdate "off") or does not know this version
+function cpc:versionStatus()
   local path = cpc.downloadPath .. "versions.lua"
+  if not io.exists(path) then return 0, cpc.version end
   local versions = {}
-  
   table.load(path, versions)
-  --display(versions)
-  local pos = table.index_of(versions, cpc.version) or 0
-  local line = ""
-  if pos ~= #versions then
-    --print(string.format("CPC is currently &lt;red&gt;%d&lt;reset&gt; versions behind.",#versions - pos))
-    --print("To update now, please type: &lt;yellow&gt;#CPC update&lt;reset&gt;")
-    line = "&lt;orange&gt;(".. #versions - pos .. " behind online - ".. versions[#versions] ..")\n \t #CPC UPDATE to upgrade"
-  else
-    line =""
+  local pos = table.index_of(versions, cpc.version)
+  if not pos or #versions == 0 then return 0, cpc.version end
+  return #versions - pos, versions[#versions]
+end
+
+function cpc:checkVersion()
+  local behind, latest = cpc:versionStatus()
+  if behind == 0 then
+    return cpc.autoUpdate == "off" and "&lt;orange&gt;(auto update off)" or ""
   end
-  return line
+  return "&lt;orange&gt;(" .. behind .. " behind online - " .. latest .. ")\n \t #CPC UPDATE to upgrade"
+end
+
+-- installed as a package (the mpackage), as opposed to a module from a git clone
+function cpc:installedAsPackage()
+  if cpc.loadedAs == "package" then return true end
+  if cpc.loadedAs == "module" then return false end
+  return getPackages ~= nil and table.contains(getPackages(), "Cross Profile Communication")
+end
+
+-- the version list has arrived at load: act on cpc.autoUpdate
+function cpc:onVersionsFetched()
+  local behind, latest = cpc:versionStatus()
+  if behind == 0 then return end
+  local page = cpc.releasePage .. latest
+  if cpc.autoUpdate == "on" and cpc:installedAsPackage() then
+    cecho("&lt;cyan&gt;CPC " .. cpc.version .. " is " .. behind .. " behind; installing " .. latest .. "\n")
+    cpc:downloadLatestVersion()
+  elseif cpc.autoUpdate == "on" or cpc.autoUpdate == "notify" then
+    cecho("&lt;cyan&gt;CPC " .. cpc.version .. ": release " .. latest .. " is available, ")
+    cechoLink("&lt;yellow&gt;" .. page, "openUrl('" .. page .. "')", "open the release page", true)
+    if cpc.autoUpdate == "on" then
+      cecho("&lt;cyan&gt; (installed as a module: pull the clone to update)\n")
+    else
+      cecho("&lt;cyan&gt; (#CPC UPDATE to install)\n")
+    end
+  end
 end
 
 function cpc:downloadLatestVersion()
@@ -385,7 +418,9 @@ cpc.downloadFileHandler = registerAnonymousEventHandler("sysDownloadDone","cpc:o
 cpc.cpcModuleLoadedHandler = registerAnonymousEventHandler("sysInstallModule","cpc:onModuleOrPackageLoaded")
 cpc.cpcPackageLoadedHandler = registerAnonymousEventHandler("sysInstallPackage","cpc:onModuleOrPackageLoaded")
 
-cpc:downloadVersionFile()</script>
+if cpc.autoUpdate ~= "off" then
+  cpc:downloadVersionFile()
+end</script>
 			<eventHandlerList />
 		</Script>
 		<Script isActive="yes" isFolder="no">
