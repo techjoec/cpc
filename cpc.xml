@@ -52,6 +52,14 @@ for _, path in ipairs({ cpc.globalSettingsFile, cpc.settingsFile }) do
     end
   end
 end
+
+-- the settings #CPC CONFIG shows and sets, in this order; a bool takes on/off/true/false/yes/no
+cpc.settingsSpec = {
+  { "autoUpdate", choices = { "notify", "on", "off" }, help = "at load: notify of a newer release, install it, or never look online" },
+  { "strictTargets", bool = true, help = "a #BID/#TELL target reaches at most one profile" },
+  { "localEcho", bool = true, help = "echo CPC's own notices in this profile" },
+  { "debug", bool = true, help = "log what CPC does" },
+}
 cpc.thisProfileName = getProfileName():lower()
 cpc.downloadPath = getMudletHomeDir().."/cpc downloads/"
 cpc.downloading = false
@@ -88,6 +96,7 @@ function cpc:showHelp()
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#HELP"),"Show Helpfile(s)"))
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#VERSION"),"Show version(s)"))
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#CPC UPDATE"),"Upgrade the package"))
+  cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#CPC CONFIG [&lt;setting&gt; &lt;value&gt;]"),"Show the settings, or set one for every profile"))
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#ALL &lt;arguments&gt;"),"Send command to all profiles"))
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format(" %s","#DO &lt;arguments&gt;"),"Send command to all other profiles"))
   cecho(string.format("&lt;cyan&gt;%-30s- %s\n",string.format("   %s","#DO party report"),"Ex: tell all other profiles to execute 'party report'"))
@@ -147,9 +156,102 @@ function cpc:handleCommand(cmd,args)
     raiseEvent("cpc_bid",args)
   elseif (cmd=="cpc") and (args:lower()=="update") then
     cpc:downloadLatestVersion()
+  elseif (cmd=="cpc") and args:lower():match("^config") then
+    cpc:configCommand(args:match("^%S+%s*(.*)$"))
   else
     cecho("&lt;orange&gt;Command '".. string.upper(cmd) .. " ".. string.upper(args) .. "' not supported!\n")
   end
+end
+
+-- a value typed for a setting, or nil and why not
+function cpc:parseSetting(spec, raw)
+  local v = (raw or ""):lower()
+  if spec.bool then
+    if v == "on" or v == "true" or v == "yes" or v == "1" then return true end
+    if v == "off" or v == "false" or v == "no" or v == "0" then return false end
+    return nil, "on or off"
+  end
+  for _, c in ipairs(spec.choices) do
+    if v == c then return c end
+  end
+  return nil, table.concat(spec.choices, ", ")
+end
+
+-- the table a settings file holds, or an empty one
+function cpc:readSettingsFile(path)
+  local f = io.open(path, "r")
+  if not f then return {} end
+  f:close()
+  local ok, t = pcall(dofile, path)
+  return (ok and type(t) == "table") and t or {}
+end
+
+-- write a settings file: the known settings in order, then anything else the file already held
+function cpc:writeSettingsFile(path, t)
+  local known, lines = {}, {}
+  local function lit(v)
+    if type(v) == "string" then return string.format("%q", v) end
+    return tostring(v)
+  end
+  for _, spec in ipairs(cpc.settingsSpec) do
+    known[spec[1]] = true
+    if t[spec[1]] ~= nil then lines[#lines + 1] = "  " .. spec[1] .. " = " .. lit(t[spec[1]]) .. "," end
+  end
+  for k, v in pairs(t) do
+    if not known[k] and type(k) == "string" then lines[#lines + 1] = "  " .. k .. " = " .. lit(v) .. "," end
+  end
+  local f, err = io.open(path, "w")
+  if not f then return nil, err end
+  f:write("return {\n" .. table.concat(lines, "\n") .. "\n}\n")
+  f:close()
+  return true
+end
+
+-- #CPC CONFIG: the settings and how to set each; #CPC CONFIG &lt;setting&gt; &lt;value&gt;: set one in the
+-- global settings file (every profile on this machine) and in this profile now
+function cpc:configCommand(rest)
+  local key, value = (rest or ""):match("^(%S+)%s*(.-)%s*$")
+  if key and key ~= "" then
+    local spec
+    for _, sp in ipairs(cpc.settingsSpec) do
+      if sp[1]:lower() == key:lower() then spec = sp end
+    end
+    if not spec then
+      local names = {}
+      for _, sp in ipairs(cpc.settingsSpec) do names[#names + 1] = sp[1] end
+      cecho("&lt;orange&gt;CPC: no setting '" .. key .. "'; the settings are " .. table.concat(names, ", ") .. "\n")
+      return
+    end
+    local v, want = cpc:parseSetting(spec, value)
+    if v == nil then
+      cecho("&lt;orange&gt;CPC: " .. spec[1] .. " takes " .. want .. "\n")
+      return
+    end
+    local t = cpc:readSettingsFile(cpc.globalSettingsFile)
+    t[spec[1]] = v
+    local ok, err = cpc:writeSettingsFile(cpc.globalSettingsFile, t)
+    if not ok then
+      cecho("&lt;orange&gt;CPC: could not write " .. cpc.globalSettingsFile .. ": " .. tostring(err) .. "\n")
+      return
+    end
+    cpc[spec[1]] = v
+    cecho("&lt;cyan&gt;CPC: " .. spec[1] .. " = " .. tostring(v) .. " for every profile; open profiles pick it up at their next load")
+    if spec[1] == "autoUpdate" then cecho("&lt;cyan&gt; (the check at load follows it from then on)") end
+    cecho("\n&lt;cyan&gt;Cfg: " .. cpc.globalSettingsFile .. "\n")
+    return
+  end
+  local global = cpc:readSettingsFile(cpc.globalSettingsFile)
+  local own = cpc:readSettingsFile(cpc.settingsFile)
+  cecho("&lt;cyan&gt;Cross Profile Communication settings:\n")
+  for _, spec in ipairs(cpc.settingsSpec) do
+    local name = spec[1]
+    local from = own[name] ~= nil and "this profile's file" or global[name] ~= nil and "global file" or "default"
+    local takes = spec.bool and "on|off" or table.concat(spec.choices, "|")
+    cecho(string.format("&lt;cyan&gt; %-14s = %-7s &lt;grey&gt;(%s)  %s\n", name, tostring(cpc[name]), from, spec.help))
+    cecho(string.format("&lt;cyan&gt; %-14s   &lt;yellow&gt;#CPC CONFIG %s &lt;%s&gt;\n", "", name, takes))
+  end
+  cecho("&lt;cyan&gt;Cfg: " .. cpc.globalSettingsFile .. "\n")
+  if own and next(own) then cecho("&lt;cyan&gt;Cfg (this profile, applied over it): " .. cpc.settingsFile .. "\n") end
 end
 
 function cpc:parseProfileAndArgs(arg)

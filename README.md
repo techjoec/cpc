@@ -12,6 +12,7 @@ This package allows you to control several profiles from one profile. It current
 |-------------------------------------|------------------------------------|-------------------------------|
 | #HELP                               | cpc:showHelp()                     | Show Helpfile(s)              |
 | #VERSION                            | cpc:showVersion()                  | Show version(s)               |
+| #CPC CONFIG [setting value]         | cpc:handleCommand("cpc","config autoUpdate off") | Show the settings, or set one for every profile |
 | #ALL &lt;arguments&gt;              | cpc:handleCommand("all","say hi")  | Send command to all profiles  |
 | #DO &lt;arguments&gt;               | cpc:handleCommand("do","bow")      | send command to all other profiles |
 | #BID &lt;profile> &lt;arguments&gt; | cpc:handleCommand("bid","gandalf cast light at demon") | send command to one character (immediate execution) |
@@ -40,7 +41,11 @@ so in the sender; the other profiles stay silent. Use `#ALL` or `#DO` to reach s
 
 ## Settings
 
-Set these in a file `cpc-settings.lua` that returns a table and survives package updates:
+`#CPC CONFIG` shows every setting with its value, where it came from and how to set it;
+`#CPC CONFIG <setting> <value>` sets one for every profile on the machine and prints the file
+it wrote (`Cfg: <path>`). Open profiles pick a change up at their next load.
+
+Behind that is a file `cpc-settings.lua` that returns a table and survives package updates:
 
     return { autoUpdate = "off", strictTargets = true }
 
@@ -89,7 +94,7 @@ the package then says nothing about being behind.
 
 `cpc.xml` is the Mudlet module: the script and the `#` alias. `lua5.1 tests/targeting_test.lua`
 runs the targeting rule in both modes and `lua5.1 tests/update_test.lua` the three auto update
-settings, with stand-ins for Mudlet. A release is a `v*` tag: the
+settings and `lua5.1 tests/config_test.lua` the `#CPC CONFIG` command, with stand-ins for Mudlet. A release is a `v*` tag: the
 workflow runs the test, stamps the tag into `cpc.xml` and attaches `cpc.mpackage` to a GitHub
 release. Add the tag to `versions.lua` in the same commit, since installed copies look their
 version up in that list to tell how far behind they are.
