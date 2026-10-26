@@ -1,5 +1,8 @@
 # CPC
-Mudlet Cross Profile Communication package
+Mudlet Cross Profile Communication package, carried on here from
+[takilara/cpc](https://github.com/takilara/cpc). Versions 0.3.x and earlier are upstream's;
+the 0.4.x series is released from this repository, and `#VERSION` and `#CPC UPDATE` in a
+package installed from here check against this repository's list and releases.
 
 ## Description
 
@@ -68,6 +71,14 @@ Note! when installed like this, the scripts and aliases will be organized under 
 * Click the 'Install' button, and browse to the git clone of the repository
 * Select the file cpc.xml
 * Check the 'Sync' checkbox if you want your changes to be stored back to the checkout folder (e.g. for commits back to the repository, or for use on multiple profiles)
+
+## Development
+
+`cpc.xml` is the Mudlet module: the script and the `#` alias. `lua5.1 tests/targeting_test.lua`
+runs the targeting rule in both modes with stand-ins for Mudlet. A release is a `v*` tag: the
+workflow runs the test, stamps the tag into `cpc.xml` and attaches `cpc.mpackage` to a GitHub
+release. Add the tag to `versions.lua` in the same commit, since installed copies look their
+version up in that list to tell how far behind they are.
 
 ## References
 

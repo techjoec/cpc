@@ -23,8 +23,8 @@ cpc:handleCommand(cmd,args)</script>
 			<script>cpc = cpc or {}
 -- 0.0.0 is localbuild version, will get replaced by github actions when tagging
 cpc.version = "0.0.0"
-cpc.onlinePath = "https://github.com/takilara/cpc/releases/latest/download/"
-cpc.onlineVersionFile = "https://raw.githubusercontent.com/takilara/cpc/main/versions.lua"
+cpc.onlinePath = "https://github.com/techjoec/cpc/releases/latest/download/"
+cpc.onlineVersionFile = "https://raw.githubusercontent.com/techjoec/cpc/main/versions.lua"
 cpc.debug = cpc.debug or false
 cpc.localEcho = cpc.localEcho or true
 -- true: a #BID or #TELL target reaches at most one profile (see cpc:isTarget)
