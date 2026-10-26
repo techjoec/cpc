@@ -19,7 +19,8 @@ function killAnonymousEventHandler() end
 function downloadFile(path, url) downloads[#downloads + 1] = url end
 function io.exists(p) return versionsOnDisk ~= nil or not p:find("versions.lua") end
 lfs = { mkdir = function() end }
-function getMudletHomeDir() return "/tmp" end
+os.execute("mkdir -p /tmp/cpc-test/profiles/Mage-Test")
+function getMudletHomeDir() return "/tmp/cpc-test/profiles/Mage-Test" end
 function table.load(path, t) for i, v in ipairs(versionsOnDisk) do t[i] = v end end
 function table.index_of(t, v) for i, x in ipairs(t) do if x == v then return i end end end
 function table.contains(t, v) for _, x in ipairs(t) do if x == v then return true end end return false end
@@ -44,7 +45,7 @@ local function arrive(list)
   versionsOnDisk = list
   cpc.downloading = true
   out, links, downloads, installs = {}, {}, {}, {}
-  arg = { "/tmp/cpc downloads/versions.lua" }
+  arg = { getMudletHomeDir() .. "/cpc downloads/versions.lua" }
   cpc:onFileDownloaded("sysDownloadDone", arg[1])
 end
 local function text() return table.concat(out) end
@@ -68,11 +69,16 @@ versionsOnDisk = nil
 load({ autoUpdate = "off" })
 check(#downloads == 0, "off: nothing is fetched at load")
 
--- off through the profile's settings file, which wins over the defaults
-local sf = io.open("/tmp/cpc-settings.lua", "w"); sf:write('return { autoUpdate = "off", strictTargets = true }'); sf:close()
+-- off through the global settings file, one level above the profile folders
+local sf = io.open("/tmp/cpc-test/profiles/cpc-settings.lua", "w"); sf:write('return { autoUpdate = "off", strictTargets = true }'); sf:close()
 load(nil)
-os.remove("/tmp/cpc-settings.lua")
-check(cpc.autoUpdate == "off" and cpc.strictTargets == true and #downloads == 0, "settings file: read at load, nothing fetched")
+check(cpc.autoUpdate == "off" and cpc.strictTargets == true and #downloads == 0, "global settings file: read at load, nothing fetched")
+-- the profile's own file is applied over it
+sf = io.open("/tmp/cpc-test/profiles/Mage-Test/cpc-settings.lua", "w"); sf:write('return { autoUpdate = "notify" }'); sf:close()
+load(nil)
+check(cpc.autoUpdate == "notify" and cpc.strictTargets == true and #downloads == 1, "profile settings file: applied over the global one")
+os.remove("/tmp/cpc-test/profiles/Mage-Test/cpc-settings.lua")
+os.remove("/tmp/cpc-test/profiles/cpc-settings.lua")
 check(cpc:checkVersion() == "<orange>(auto update off)", "off: #VERSION says so instead of guessing")
 
 -- on, installed as a package
@@ -82,7 +88,7 @@ arrive({ "v0.3.5", "v0.4.0", "v0.4.1" })
 check(text():find("installing v0.4.1") and #downloads == 1 and downloads[1]:find("releases/latest/download/cpc.mpackage"),
   "on, package: the release is downloaded at load")
 cpc.downloading = true
-arg = { "/tmp/cpc downloads/cpc.mpackage" }
+arg = { getMudletHomeDir() .. "/cpc downloads/cpc.mpackage" }
 cpc:onFileDownloaded("sysDownloadDone", arg[1])
 check(installs[1] == "uninstall" and installs[2] == "install", "on, package: the downloaded package replaces the installed one")
 

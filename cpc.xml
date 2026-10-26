@@ -34,18 +34,21 @@ cpc.strictTargets = cpc.strictTargets or false
 -- online. #CPC UPDATE installs the latest on request whatever the setting.
 cpc.autoUpdate = cpc.autoUpdate or "notify"
 cpc.releasePage = "https://github.com/techjoec/cpc/releases/tag/"
--- a profile's own settings, kept across package updates: &lt;profile&gt;/cpc-settings.lua returning
--- a table of the fields above, e.g. return { autoUpdate = "off", strictTargets = true }
+-- settings files, kept across package updates, each returning a table of the fields above,
+-- e.g. return { autoUpdate = "off", strictTargets = true }: one for every profile on this
+-- machine, cpc-settings.lua in the folder that holds the profile folders, then the profile's
+-- own &lt;profile&gt;/cpc-settings.lua over it
+cpc.globalSettingsFile = (getMudletHomeDir():match("^(.*)[/\\][^/\\]+$") or getMudletHomeDir()) .. "/cpc-settings.lua"
 cpc.settingsFile = getMudletHomeDir() .. "/cpc-settings.lua"
-do
-  local f = io.open(cpc.settingsFile, "r")
+for _, path in ipairs({ cpc.globalSettingsFile, cpc.settingsFile }) do
+  local f = io.open(path, "r")
   if f then
     f:close()
-    local ok, t = pcall(dofile, cpc.settingsFile)
+    local ok, t = pcall(dofile, path)
     if ok and type(t) == "table" then
       for k, v in pairs(t) do cpc[k] = v end
     else
-      cecho("&lt;orange&gt;CPC: could not read " .. cpc.settingsFile .. ": " .. tostring(t) .. "\n")
+      cecho("&lt;orange&gt;CPC: could not read " .. path .. ": " .. tostring(t) .. "\n")
     end
   end
 end

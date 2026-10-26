@@ -40,13 +40,14 @@ so in the sender; the other profiles stay silent. Use `#ALL` or `#DO` to reach s
 
 ## Settings
 
-Set these in a file `cpc-settings.lua` in the profile folder (`getMudletHomeDir()`), which
-returns a table and survives package updates:
+Set these in a file `cpc-settings.lua` that returns a table and survives package updates:
 
     return { autoUpdate = "off", strictTargets = true }
 
-or in a script of your own that loads before CPC, or at any time from the command line with
-`lua`; CPC keeps a value that is already set:
+in the folder that holds the profile folders for every profile on the machine (`profiles/` on
+most installs, one level above `getMudletHomeDir()`), or in a profile's own folder for that
+profile, which is applied over the global one. Or in a script of your own that loads before
+CPC, or at any time from the command line with `lua`; CPC keeps a value that is already set:
 
 | Setting | Default | Effect |
 |---|---|---|
