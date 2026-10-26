@@ -75,6 +75,12 @@ Note! when installed like this, the scripts and aliases will be organized under 
 
 ## Development
 
+Work lands on `dev`; `main` moves when dev is ready, and a `v*` tag on `main` is the only
+thing that becomes a release. A build of any ref is the four files zipped as `cpc.mpackage`
+with the version stamped into `cpc.xml` (`sed 's/cpc.version = "0.0.0"/.../'`); a build that
+is not a release stamps something the version list does not know, such as `dev-<sha>`, and
+the package then says nothing about being behind.
+
 `cpc.xml` is the Mudlet module: the script and the `#` alias. `lua5.1 tests/targeting_test.lua`
 runs the targeting rule in both modes and `lua5.1 tests/update_test.lua` the three auto update
 settings, with stand-ins for Mudlet. A release is a `v*` tag: the
