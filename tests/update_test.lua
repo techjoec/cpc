@@ -68,6 +68,7 @@ check(#out == 0, "a list that does not know this version says nothing")
 versionsOnDisk = nil
 load({ autoUpdate = "off" })
 check(#downloads == 0, "off: nothing is fetched at load")
+check(cpc:checkVersion() == "<orange>(auto update off)", "off: #VERSION says so instead of guessing")
 
 -- off through the global settings file, one level above the profile folders
 local sf = io.open("/tmp/cpc-test/profiles/cpc-settings.lua", "w"); sf:write('return { autoUpdate = "off", strictTargets = true }'); sf:close()
@@ -79,7 +80,6 @@ load(nil)
 check(cpc.autoUpdate == "notify" and cpc.strictTargets == true and #downloads == 1, "profile settings file: applied over the global one")
 os.remove("/tmp/cpc-test/profiles/Mage-Test/cpc-settings.lua")
 os.remove("/tmp/cpc-test/profiles/cpc-settings.lua")
-check(cpc:checkVersion() == "<orange>(auto update off)", "off: #VERSION says so instead of guessing")
 
 -- on, installed as a package
 load({ autoUpdate = "on" })
