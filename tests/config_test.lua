@@ -53,7 +53,9 @@ t = dofile(global)
 check(cpc.strictTargets == true and t.strictTargets == true and t.autoUpdate == "off", "a bool from on/off, case aside; earlier settings kept")
 check(run("config strictTargets maybe"):find("strictTargets takes on or off"), "a bad bool is refused")
 check(run("config autoUpdate sometimes"):find("autoUpdate takes notify, on, off"), "a bad choice is refused")
-check(run("config dingdongaroonie 42"):find("no setting 'dingdongaroonie'; the settings are autoUpdate, strictTargets, localEcho, debug"), "an unknown setting is refused with the list")
+check(run("config dingdongaroonie 42"):find("no setting 'dingdongaroonie'; the settings are autoUpdate, checkInterval, strictTargets, localEcho, debug"), "an unknown setting is refused with the list")
+check(run("config checkInterval 12"):find("Cfg: ", 1, true) and cpc.checkInterval == 12 and dofile(global).checkInterval == 12, "a number setting is set and stored as a number")
+check(run("config checkInterval soon"):find("checkInterval takes a number of hours"), "a bad number is refused")
 
 -- the written file is what the next load reads
 cpc = nil

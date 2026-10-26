@@ -7,6 +7,8 @@ for body in xml:gmatch("<script>(.-)</script>") do
   if #body > (script and #script or 0) then script = body end
 end
 script = script:gsub("&lt;", "<"):gsub("&gt;", ">"):gsub("&quot;", '"'):gsub("&amp;", "&")
+-- the version a release build would carry, stamped the way the workflow does it
+script = script:gsub('cpc.version = "0.0.0"', 'cpc.version = "v0.4.0"')
 
 local out, downloads, links, installs, versionsOnDisk, packages = {}, {}, {}, {}, nil, {}
 function getProfiles() return {} end
@@ -17,8 +19,9 @@ function cechoLink(text, cmd, hint) links[#links + 1] = { text = text, cmd = cmd
 function registerAnonymousEventHandler() return 1 end
 function killAnonymousEventHandler() end
 function downloadFile(path, url) downloads[#downloads + 1] = url end
-function io.exists(p) return versionsOnDisk ~= nil or not p:find("versions.lua") end
-lfs = { mkdir = function() end }
+function io.exists(p) if p:find("versions.lua") then return versionsOnDisk ~= nil end return true end
+local stampAge = nil   -- seconds since the shared check stamp, nil = no stamp
+lfs = { mkdir = function() end, attributes = function(path, what) if path:find("last%-check") and stampAge then return os.time() - stampAge end end }
 os.execute("mkdir -p /tmp/cpc-test/profiles/Mage-Test")
 function getMudletHomeDir() return "/tmp/cpc-test/profiles/Mage-Test" end
 function table.load(path, t) for i, v in ipairs(versionsOnDisk) do t[i] = v end end
@@ -37,9 +40,9 @@ local function check(cond, what)
 end
 local function load(preset)
   cpc = preset
+  os.remove("/tmp/cpc-test/profiles/cpc downloads/last-check")
   out, downloads, links, installs = {}, {}, {}, {}
   assert(loadstring(script))()
-  cpc.version = "v0.4.0"
 end
 local function arrive(list)
   versionsOnDisk = list
@@ -50,10 +53,26 @@ local function arrive(list)
 end
 local function text() return table.concat(out) end
 
--- default: notify
+-- default: notify, a check once a day shared by the profiles
+os.execute("mkdir -p '/tmp/cpc-test/profiles/cpc downloads'")
+versionsOnDisk = nil
 load(nil)
-check(cpc.autoUpdate == "notify", "autoUpdate defaults to notify")
-check(#downloads == 1 and downloads[1]:find("techjoec/cpc/main/versions.lua"), "notify: the version list is fetched at load")
+check(cpc.autoUpdate == "notify" and cpc.checkInterval == 24, "autoUpdate defaults to notify, checkInterval to 24 hours")
+check(#downloads == 1 and downloads[1]:find("techjoec/cpc/main/versions.lua"), "notify: the version list is fetched at a first load")
+check(io.open("/tmp/cpc-test/profiles/cpc downloads/last-check") ~= nil, "the shared check stamp is written before the fetch")
+versionsOnDisk = { "v0.3.5", "v0.4.0", "v0.4.1" }
+stampAge = 3600
+load(nil)
+check(#downloads == 0 and text():find("release v0.4.1 is available"), "an hour later another profile does not fetch, but still tells from the fetched list")
+stampAge = 25 * 3600
+load(nil)
+check(#downloads == 1, "after the interval the next load fetches again")
+stampAge = 60
+load({ checkInterval = 0 })
+check(#downloads == 1, "checkInterval 0 fetches at every load")
+stampAge = nil
+versionsOnDisk = nil
+load(nil)
 arrive({ "v0.3.5", "v0.4.0" })
 check(#out == 0 and #downloads == 0, "notify: nothing said when this is the newest release")
 arrive({ "v0.3.5", "v0.4.0", "v0.4.1" })

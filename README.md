@@ -60,6 +60,7 @@ CPC, or at any time from the command line with `lua`; CPC keeps a value that is 
 | `cpc.localEcho` | `true` | Echo CPC's own notices in this profile |
 | `cpc.strictTargets` | `false` | A `#BID` or `#TELL` target reaches at most one profile (above) |
 | `cpc.autoUpdate` | `"notify"` | `"notify"`: at load, say when a newer release exists, with a link to its release page. `"on"`: install it at load (package installs; a module from a git clone is told to pull). `"off"`: never look online. `#CPC UPDATE` installs the latest on request whatever the setting; `#VERSION` shows how far behind this copy is. |
+| `cpc.checkInterval` | `24` | Hours between online checks. The check is shared by every profile on the machine: the first profile to load after that long fetches the version list, the others read what it fetched. `0` checks at every load. |
 
 ## Installation
 

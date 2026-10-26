@@ -25,6 +25,8 @@ cpc:handleCommand(cmd,args)</script>
 cpc.version = "0.0.0"
 cpc.onlinePath = "https://github.com/techjoec/cpc/releases/latest/download/"
 cpc.onlineVersionFile = "https://raw.githubusercontent.com/techjoec/cpc/main/versions.lua"
+-- the folder that holds the profile folders: what every profile on this machine shares
+cpc.sharedDir = getMudletHomeDir():match("^(.*)[/\\][^/\\]+$") or getMudletHomeDir()
 cpc.debug = cpc.debug or false
 cpc.localEcho = cpc.localEcho or true
 -- true: a #BID or #TELL target reaches at most one profile (see cpc:isTarget)
@@ -33,12 +35,15 @@ cpc.strictTargets = cpc.strictTargets or false
 -- (package installs only; a module from a git clone is told to pull); "off": never look
 -- online. #CPC UPDATE installs the latest on request whatever the setting.
 cpc.autoUpdate = cpc.autoUpdate or "notify"
+-- hours between online checks, shared by every profile on this machine: the first profile to
+-- load after that long fetches the version list, the others read what it fetched. 0: every load
+cpc.checkInterval = cpc.checkInterval or 24
 cpc.releasePage = "https://github.com/techjoec/cpc/releases/tag/"
 -- settings files, kept across package updates, each returning a table of the fields above,
 -- e.g. return { autoUpdate = "off", strictTargets = true }: one for every profile on this
 -- machine, cpc-settings.lua in the folder that holds the profile folders, then the profile's
 -- own &lt;profile&gt;/cpc-settings.lua over it
-cpc.globalSettingsFile = (getMudletHomeDir():match("^(.*)[/\\][^/\\]+$") or getMudletHomeDir()) .. "/cpc-settings.lua"
+cpc.globalSettingsFile = cpc.sharedDir .. "/cpc-settings.lua"
 cpc.settingsFile = getMudletHomeDir() .. "/cpc-settings.lua"
 for _, path in ipairs({ cpc.globalSettingsFile, cpc.settingsFile }) do
   local f = io.open(path, "r")
@@ -56,12 +61,14 @@ end
 -- the settings #CPC CONFIG shows and sets, in this order; a bool takes on/off/true/false/yes/no
 cpc.settingsSpec = {
   { "autoUpdate", choices = { "notify", "on", "off" }, help = "at load: notify of a newer release, install it, or never look online" },
+  { "checkInterval", number = true, help = "hours between online checks, shared by every profile; 0 checks at every load" },
   { "strictTargets", bool = true, help = "a #BID/#TELL target reaches at most one profile" },
   { "localEcho", bool = true, help = "echo CPC's own notices in this profile" },
   { "debug", bool = true, help = "log what CPC does" },
 }
 cpc.thisProfileName = getProfileName():lower()
-cpc.downloadPath = getMudletHomeDir().."/cpc downloads/"
+cpc.downloadPath = cpc.sharedDir .. "/cpc downloads/"
+cpc.checkStamp = cpc.downloadPath .. "last-check"
 cpc.downloading = false
 cpc.loadedAs = "unknown"
 
@@ -166,6 +173,11 @@ end
 -- a value typed for a setting, or nil and why not
 function cpc:parseSetting(spec, raw)
   local v = (raw or ""):lower()
+  if spec.number then
+    local n = tonumber(v)
+    if n and n &gt;= 0 then return n end
+    return nil, "a number of hours, 0 or more"
+  end
   if spec.bool then
     if v == "on" or v == "true" or v == "yes" or v == "1" then return true end
     if v == "off" or v == "false" or v == "no" or v == "0" then return false end
@@ -246,7 +258,7 @@ function cpc:configCommand(rest)
   for _, spec in ipairs(cpc.settingsSpec) do
     local name = spec[1]
     local from = own[name] ~= nil and "this profile's file" or global[name] ~= nil and "global file" or "default"
-    local takes = spec.bool and "on|off" or table.concat(spec.choices, "|")
+    local takes = spec.bool and "on|off" or spec.number and "hours" or table.concat(spec.choices, "|")
     cecho(string.format("&lt;cyan&gt; %-14s = %-7s &lt;grey&gt;(%s)  %s\n", name, tostring(cpc[name]), from, spec.help))
     cecho(string.format("&lt;cyan&gt; %-14s   &lt;yellow&gt;#CPC CONFIG %s &lt;%s&gt;\n", "", name, takes))
   end
@@ -417,9 +429,20 @@ end
 function cpc:downloadVersionFile()
   --print("Download the versions file")
   if not io.exists(cpc.downloadPath) then lfs.mkdir(cpc.downloadPath) end
+  -- stamp first, so profiles loading alongside this one see the check as done
+  local f = io.open(cpc.checkStamp, "w")
+  if f then f:write(tostring(os.time()) .. "\n") f:close() end
   local filename = "versions.lua"
   cpc.downloading=true
   downloadFile(cpc.downloadPath .. filename, cpc.onlineVersionFile)
+end
+
+-- is an online check due: no list or stamp yet, checkInterval 0, or the stamp older than it
+function cpc:checkDue()
+  if cpc.checkInterval == 0 then return true end
+  if not io.exists(cpc.downloadPath .. "versions.lua") then return true end
+  local stamped = lfs and lfs.attributes and lfs.attributes(cpc.checkStamp, "modification")
+  return not stamped or os.time() - stamped &gt;= cpc.checkInterval * 3600
 end
 
 -- how many releases this copy is behind the fetched list, and the newest one; 0 and this
@@ -539,7 +562,11 @@ cpc.cpcModuleLoadedHandler = registerAnonymousEventHandler("sysInstallModule","c
 cpc.cpcPackageLoadedHandler = registerAnonymousEventHandler("sysInstallPackage","cpc:onModuleOrPackageLoaded")
 
 if cpc.autoUpdate ~= "off" then
-  cpc:downloadVersionFile()
+  if cpc:checkDue() then
+    cpc:downloadVersionFile()
+  else
+    cpc:onVersionsFetched()
+  end
 end</script>
 			<eventHandlerList />
 		</Script>
